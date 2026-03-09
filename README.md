@@ -102,8 +102,6 @@ You control:
 - `--worker-name`
 - `--monitor-name`
 
-`--gpu 6` is only a convenience alias for setting `CUDA_VISIBLE_DEVICES=6`.
-
 ## Monitor Modes
 
 - `macro`: default, higher-level supervision, default interval `300`
