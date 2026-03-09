@@ -9,7 +9,7 @@ description = "Repo-local coordination layer for multiple Codex and Claude worke
 readme = "README.md"
 requires-python = ">=3.11"
 authors = [
-  { name = "OpenAI Codex" }
+  { name = "Zhichen Zeng" }
 ]
 
 [project.scripts]
