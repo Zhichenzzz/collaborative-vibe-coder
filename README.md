@@ -20,6 +20,12 @@ Shared state lives in `.collab/` inside the target repo. The tool can:
 ## Install
 
 ```bash
+pip install git+https://github.com/Zhichenzzz/collaborative-vibe-coder.git
+```
+
+For local editable development:
+
+```bash
 git clone https://github.com/Zhichenzzz/collaborative-vibe-coder.git
 cd collaborative-vibe-coder
 pip install -e .
