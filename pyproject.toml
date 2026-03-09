@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "collaborative-vibe-coder"
+version = "0.1.0"
+description = "Repo-local coordination layer for multiple Codex and Claude workers."
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [
+  { name = "OpenAI Codex" }
+]
+
+[project.scripts]
+vibe-collab = "collaborative_vibe_coder.cli:main"
+vibe-supervise = "collaborative_vibe_coder.supervise_entry:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
