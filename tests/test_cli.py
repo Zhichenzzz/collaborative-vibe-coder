@@ -11,10 +11,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from collaborative_vibe_coder.cli import main
+from collaborative_vibe_coder.cli import main, render
 from collaborative_vibe_coder.session import build_agent_command
 from collaborative_vibe_coder.supervise import default_interval_for_style
-from collaborative_vibe_coder.store import CollabStore
+from collaborative_vibe_coder.store import CollabStore, clean_terminal_text
 
 
 class CollaborationCliTests(unittest.TestCase):
@@ -365,9 +365,17 @@ class CollaborationCliTests(unittest.TestCase):
         self.assertIn("--search", command)
         self.assertIn("hello", command)
 
-    def test_supervise_start_defaults_to_macro_interval(self) -> None:
-        worker_session = f"worker-{uuid.uuid4().hex[:8]}"
-        monitor_session = f"monitor-{uuid.uuid4().hex[:8]}"
+    def test_terminal_text_and_json_render_keep_chinese_readable(self) -> None:
+        dirty = "\x1b[39;49m你好\x1b[0m\r\nworld"
+        self.assertEqual(clean_terminal_text(dirty), "你好\nworld")
+        rendered = render({"message": "你好"}, as_json=True)
+        self.assertIn("你好", rendered)
+        self.assertNotIn("\\u4f60", rendered)
+
+    def test_supervise_start_accepts_check_interval_alias(self) -> None:
+        worker_name = f"codex-worker-{uuid.uuid4().hex[:8]}"
+        monitor_name = f"codex-monitor-{uuid.uuid4().hex[:8]}"
+        orchestrator_session = f"orchestrator-{uuid.uuid4().hex[:8]}"
         try:
             code, output, stderr = self.run_cli(
                 "--json",
@@ -381,33 +389,82 @@ class CollaborationCliTests(unittest.TestCase):
                 "cat",
                 "--monitor-command",
                 "cat",
+                "--check-interval-seconds",
+                "123",
                 "--worker-name",
-                "codex-worker-1",
+                worker_name,
                 "--monitor-name",
-                "codex-monitor",
+                monitor_name,
                 "--orchestrator-session",
-                "orchestrator-test",
+                orchestrator_session,
                 "--no-loop",
             )
             self.assertEqual(code, 0, msg=stderr)
             payload = json.loads(output)
             self.assertEqual(payload["monitor_style"], "macro")
-            self.assertEqual(payload["interval_seconds"], default_interval_for_style("macro"))
+            self.assertEqual(payload["interval_seconds"], 123)
             self.assertEqual(payload["task_id"], "TASK-001")
             self.assertEqual(payload["worker_actions"], "Run the benchmark and fix issues.")
             self.assertEqual(payload["monitor_goal"], "Reach the benchmark target.")
             self.assertTrue(payload["scratchpad"])
-            self.assertTrue(payload["worker_scratchpad_path"].endswith("codex-worker-1.log"))
-            self.assertTrue(payload["monitor_scratchpad_path"].endswith("codex-monitor.log"))
+            self.assertTrue(payload["worker_scratchpad_path"].endswith(f"{worker_name}.log"))
+            self.assertTrue(payload["monitor_scratchpad_path"].endswith(f"{monitor_name}.log"))
 
             code, output, _ = self.run_cli("--json", "session", "list")
             self.assertEqual(code, 0)
             sessions = json.loads(output)
             names = {item["agent_name"] for item in sessions}
-            self.assertIn("codex-worker-1", names)
-            self.assertIn("codex-monitor", names)
+            self.assertIn(worker_name, names)
+            self.assertIn(monitor_name, names)
         finally:
-            self.run_cli("supervise", "stop", "--worker-name", "codex-worker-1", "--monitor-name", "codex-monitor", "--orchestrator-session", "orchestrator-test")
+            self.run_cli(
+                "supervise",
+                "stop",
+                "--worker-name",
+                worker_name,
+                "--monitor-name",
+                monitor_name,
+                "--orchestrator-session",
+                orchestrator_session,
+            )
+
+    def test_supervise_start_defaults_to_macro_interval(self) -> None:
+        code, output, stderr = self.run_cli(
+            "--json",
+            "supervise",
+            "start",
+            "--worker-actions",
+            "Run the benchmark and fix issues.",
+            "--monitor-goal",
+            "Reach the benchmark target.",
+            "--worker-command",
+            "cat",
+            "--monitor-command",
+            "cat",
+            "--worker-name",
+            "codex-worker-default",
+            "--monitor-name",
+            "codex-monitor-default",
+            "--orchestrator-session",
+            "orchestrator-default-test",
+            "--no-loop",
+        )
+        try:
+            self.assertEqual(code, 0, msg=stderr)
+            payload = json.loads(output)
+            self.assertEqual(payload["monitor_style"], "macro")
+            self.assertEqual(payload["interval_seconds"], default_interval_for_style("macro"))
+        finally:
+            self.run_cli(
+                "supervise",
+                "stop",
+                "--worker-name",
+                "codex-worker-default",
+                "--monitor-name",
+                "codex-monitor-default",
+                "--orchestrator-session",
+                "orchestrator-default-test",
+            )
 
 
 if __name__ == "__main__":

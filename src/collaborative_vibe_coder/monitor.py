@@ -166,6 +166,7 @@ class MonitorManager:
             f"Workers under supervision: {', '.join(worker_agents) if worker_agents else 'none declared'}.",
             f"Supervision style: {monitor_style}.",
             f"Expected review interval: {interval_seconds or 'manual'} seconds.",
+            "This prompt is a scheduled supervision check. Do not ignore it or defer silently.",
             f"Goal to enforce: {goal or 'No explicit goal provided. Infer it from the task and task history.'}",
             "Review the requirement, task state, repo state, recent events, and worker logs below.",
             "Decide whether the worker is on track, blocked, missing requirements, or finished.",
@@ -178,7 +179,7 @@ class MonitorManager:
                     "If you need to push a worker, use: PYTHONPATH=src python3 -m collaborative_vibe_coder session send --agent <worker> --text \"<next milestone or correction>\"",
                     "If you need to push a worker, prefer one concise high-impact instruction for the next milestone.",
                     "If the task is complete, mark it done with collaborative_vibe_coder task update and stop pushing.",
-                    "After acting, update your heartbeat with a short note.",
+                    "Every review tick must end with one of these outcomes: send a worker instruction, mark the task done, or update your heartbeat with a concrete reason for holding steady until the next check.",
                 ]
             )
         else:
@@ -188,29 +189,29 @@ class MonitorManager:
                     "PYTHONPATH=src python3 -m collaborative_vibe_coder session send --agent <worker> --text \"<next action>\"",
                     "If the task is complete, mark it done with collaborative_vibe_coder task update and stop pushing.",
                     "If the worker is blocked, tell it the missing step explicitly instead of giving vague feedback.",
-                    "After acting, update your heartbeat with a short note.",
+                    "Every review tick must end with one of these outcomes: send a worker instruction, mark the task done, or update your heartbeat with a concrete reason for holding steady until the next check.",
                 ]
             )
         instructions.extend(
             [
             "",
             "TASK SNAPSHOT:",
-            json.dumps(task, indent=2, sort_keys=True) if task else "<no task selected>",
+            json.dumps(task, indent=2, sort_keys=True, ensure_ascii=False) if task else "<no task selected>",
             "",
             "BOARD SNAPSHOT:",
-            json.dumps(board, indent=2, sort_keys=True),
+            json.dumps(board, indent=2, sort_keys=True, ensure_ascii=False),
             "",
             "SESSION SNAPSHOT:",
-            json.dumps(sessions, indent=2, sort_keys=True),
+            json.dumps(sessions, indent=2, sort_keys=True, ensure_ascii=False),
             "",
             "REPO SNAPSHOT:",
-            json.dumps(repo_snapshot, indent=2, sort_keys=True),
+            json.dumps(repo_snapshot, indent=2, sort_keys=True, ensure_ascii=False),
             "",
             "RECENT EVENTS:",
-            json.dumps(events, indent=2, sort_keys=True),
+            json.dumps(events, indent=2, sort_keys=True, ensure_ascii=False),
             "",
             "WORKER LOGS:",
-            json.dumps(worker_logs, indent=2, sort_keys=True),
+            json.dumps(worker_logs, indent=2, sort_keys=True, ensure_ascii=False),
             ]
         )
         return "\n".join(instructions)

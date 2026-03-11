@@ -45,7 +45,8 @@ cd /path/to/repo
 
 vibe-supervise start \
   --worker-actions "Describe exactly what the worker should do." \
-  --monitor-goal "Describe exactly what the monitor should accept as done."
+  --monitor-goal "Describe exactly what the monitor should accept as done." \
+  --check-interval-seconds 300
 ```
 
 This starts:
@@ -94,6 +95,7 @@ You control:
 - `--worker-actions`
 - `--monitor-goal`
 - `--monitor-style`
+- `--check-interval-seconds`
 - `--interval-seconds`
 - `--env KEY=VALUE`
 - `--gpu`
@@ -108,6 +110,7 @@ You control:
 - `micro`: tighter supervision, default interval `60`
 
 If you want the monitor to manage broadly rather than micromanage, keep `--monitor-style macro`.
+`--check-interval-seconds` is a clearer alias for `--interval-seconds`.
 
 ## Scratchpads
 

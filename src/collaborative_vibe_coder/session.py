@@ -6,7 +6,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-from collaborative_vibe_coder.store import CollabError, CollabStore, utc_now
+from collaborative_vibe_coder.store import CollabError, CollabStore, clean_terminal_text, utc_now
 
 
 class SessionManager:
@@ -314,11 +314,41 @@ class SessionManager:
             text=True,
             capture_output=True,
         )
-        return result.stdout
+        return clean_terminal_text(result.stdout)
 
     @staticmethod
     def _enable_scratchpad_capture(*, tmux_session: str, scratchpad_path: Path) -> None:
-        pipe_command = f"cat >> {shlex.quote(str(scratchpad_path))}"
+        sanitizer = (
+            "import os, pathlib, re, sys; "
+            "ansi = re.compile(r'\\x1B(?:[@-Z\\\\-_]|\\[[0-?]*[ -/]*[@-~]|\\][^\\x07]*(?:\\x07|\\x1B\\\\))'); "
+            "path = pathlib.Path(sys.argv[1]); "
+            "path.parent.mkdir(parents=True, exist_ok=True); "
+            "handle = path.open('a', encoding='utf-8'); "
+            "buffer = ''; "
+            "try:\n"
+            "  while True:\n"
+            "    chunk = os.read(0, 4096)\n"
+            "    if not chunk:\n"
+            "      break\n"
+            "    text = buffer + chunk.decode('utf-8', 'replace')\n"
+            "    if len(text) > 128:\n"
+            "      emit, buffer = text[:-128], text[-128:]\n"
+            "    else:\n"
+            "      buffer = text\n"
+            "      continue\n"
+            "    emit = ansi.sub('', emit).replace('\\r\\n', '\\n').replace('\\r', '\\n')\n"
+            "    emit = ''.join(ch for ch in emit if ch in '\\n\\t' or ord(ch) >= 32)\n"
+            "    handle.write(emit)\n"
+            "    handle.flush()\n"
+            "  if buffer:\n"
+            "    buffer = ansi.sub('', buffer).replace('\\r\\n', '\\n').replace('\\r', '\\n')\n"
+            "    buffer = ''.join(ch for ch in buffer if ch in '\\n\\t' or ord(ch) >= 32)\n"
+            "    handle.write(buffer)\n"
+            "    handle.flush()\n"
+            "finally:\n"
+            "  handle.close()\n"
+        )
+        pipe_command = f"python3 -c {shlex.quote(sanitizer)} {shlex.quote(str(scratchpad_path))}"
         subprocess.run(
             ["tmux", "pipe-pane", "-o", "-t", tmux_session, pipe_command],
             check=True,
@@ -361,6 +391,9 @@ def build_bootstrap_prompt(
             monitor_lines.append(
                 "Do not micromanage code details every cycle. Push only high-leverage corrections or missing major requirements."
             )
+        monitor_lines.append(
+            "You will be re-prompted on a schedule. Every scheduled review requires action: either send a worker instruction, mark the task done, or record a heartbeat that explains why no push was needed yet."
+        )
         monitor_lines.append(
             "When you need to nudge a worker, use `PYTHONPATH=src python3 -m collaborative_vibe_coder session send --agent <worker> --text \"...\"`."
         )

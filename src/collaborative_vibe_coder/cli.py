@@ -104,7 +104,7 @@ def build_parser() -> argparse.ArgumentParser:
     launch_session_parser.add_argument("--command", dest="command_override")
     launch_session_parser.add_argument("--watch-worker", action="append", default=[], dest="watch_workers")
     launch_session_parser.add_argument("--goal", default="")
-    launch_session_parser.add_argument("--interval-seconds", type=int)
+    launch_session_parser.add_argument("--interval-seconds", "--check-interval-seconds", dest="interval_seconds", type=int)
     launch_session_parser.add_argument("--env", action="append", default=[], dest="env_vars")
     launch_session_parser.add_argument("--full-access", action="store_true")
     launch_session_parser.add_argument("--search", action="store_true", dest="enable_search")
@@ -147,7 +147,7 @@ def build_parser() -> argparse.ArgumentParser:
     run_parser.add_argument("--worker", action="append", default=[], dest="worker_agents")
     run_parser.add_argument("--task")
     run_parser.add_argument("--goal", default="")
-    run_parser.add_argument("--interval-seconds", type=int)
+    run_parser.add_argument("--interval-seconds", "--check-interval-seconds", dest="interval_seconds", type=int)
     run_parser.add_argument("--max-ticks", type=int)
     run_parser.add_argument("--worker-log-lines", type=int, default=60)
 
@@ -167,7 +167,7 @@ def build_parser() -> argparse.ArgumentParser:
     supervise_start.add_argument("--monitor-kind", choices=["codex", "claude"], default="codex")
     supervise_start.add_argument("--gpu")
     supervise_start.add_argument("--env", action="append", default=[], dest="env_vars")
-    supervise_start.add_argument("--interval-seconds", type=int)
+    supervise_start.add_argument("--interval-seconds", "--check-interval-seconds", dest="interval_seconds", type=int)
     supervise_start.add_argument("--monitor-style", choices=["macro", "micro"], default="macro")
     supervise_start.add_argument("--worker-prompt", default="")
     supervise_start.add_argument("--monitor-prompt", default="")
@@ -190,7 +190,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 def render(value: Any, *, as_json: bool) -> str:
     if as_json:
-        return json.dumps(value, indent=2, sort_keys=True)
+        return json.dumps(value, indent=2, sort_keys=True, ensure_ascii=False)
     if isinstance(value, list):
         if not value:
             return "No records found."
@@ -223,7 +223,7 @@ def render(value: Any, *, as_json: bool) -> str:
             return _render_tasks([value])
         if "role" in value:
             return _render_agents([value])
-    return json.dumps(value, indent=2, sort_keys=True)
+    return json.dumps(value, indent=2, sort_keys=True, ensure_ascii=False)
 
 
 def _render_agents(agents: list[dict[str, Any]]) -> str:
@@ -280,7 +280,7 @@ def _render_events(events: list[dict[str, Any]]) -> str:
     for event in events:
         lines.append(f"{event['at']} {event['actor']} {event['event_type']}")
         if event.get("payload"):
-            lines.append(f"  payload={json.dumps(event['payload'], sort_keys=True)}")
+            lines.append(f"  payload={json.dumps(event['payload'], sort_keys=True, ensure_ascii=False)}")
     return "\n".join(lines)
 
 

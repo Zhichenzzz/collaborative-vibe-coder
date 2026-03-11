@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import tempfile
 import uuid
 from collections import Counter
@@ -16,6 +17,9 @@ import fcntl
 TASK_STATUSES = {"open", "in_progress", "blocked", "done", "cancelled"}
 TASK_PRIORITIES = {"low", "medium", "high", "urgent"}
 DEFAULT_META = {"next_task_number": 1}
+ANSI_ESCAPE_RE = re.compile(
+    r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~]|\][^\x07]*(?:\x07|\x1B\\))"
+)
 
 
 class CollabError(RuntimeError):
@@ -24,6 +28,12 @@ class CollabError(RuntimeError):
 
 def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+
+
+def clean_terminal_text(text: str) -> str:
+    cleaned = ANSI_ESCAPE_RE.sub("", text)
+    cleaned = cleaned.replace("\r\n", "\n").replace("\r", "\n")
+    return "".join(char for char in cleaned if char in "\n\t" or ord(char) >= 32)
 
 
 class CollabStore:
@@ -408,7 +418,7 @@ class CollabStore:
             path.parent.mkdir(parents=True, exist_ok=True)
             with path.open("a", encoding="utf-8") as handle:
                 handle.write(f"\n=== {utc_now()} {channel} ===\n")
-                handle.write(text.rstrip())
+                handle.write(clean_terminal_text(text).rstrip())
                 handle.write("\n")
             return path
 
@@ -417,7 +427,7 @@ class CollabStore:
         path = self.scratchpad_path(agent_name=agent_name)
         if not path.exists():
             raise CollabError(f"No scratchpad exists for agent: {agent_name}")
-        return path.read_text(encoding="utf-8")
+        return clean_terminal_text(path.read_text(encoding="utf-8"))
 
     def _reserve_task_id(self) -> str:
         meta = self._load_json(self.meta_path, default=dict(DEFAULT_META))
@@ -478,7 +488,7 @@ class CollabStore:
             encoding="utf-8",
             delete=False,
         ) as handle:
-            json.dump(data, handle, indent=2, sort_keys=True)
+            json.dump(data, handle, indent=2, sort_keys=True, ensure_ascii=False)
             handle.write("\n")
             temp_name = handle.name
         os.replace(temp_name, path)
@@ -492,5 +502,5 @@ class CollabStore:
             "payload": payload,
         }
         with self.events_path.open("a", encoding="utf-8") as handle:
-            handle.write(json.dumps(record, sort_keys=True))
+            handle.write(json.dumps(record, sort_keys=True, ensure_ascii=False))
             handle.write("\n")
